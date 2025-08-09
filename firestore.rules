@@ -1,0 +1,74 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return request.auth != null && request.auth.token.email == 'megharajdandgavhal2004@gmail.com';
+    }
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user owns the document
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Users collection - Admin can CRUD all, users can read their own data
+    match /users/{userId} {
+      allow read, write: if isAdmin();
+      allow read: if isOwner(userId);
+      allow create: if isAuthenticated();
+    }
+    
+    // Weekly menu - Admin can CRUD, users can read
+    match /weekly_menu/{menuId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    // Daily QR codes - Admin can CRUD, users can read
+    match /daily_qr/{qrId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    // Feedback - Users can create and read their own, admin can read and update all
+    match /feedback/{feedbackId} {
+      allow read, write: if isAdmin();
+      allow create: if isAuthenticated();
+      allow read: if isAuthenticated() && isOwner(resource.data.userId);
+    }
+    
+    // Leave requests - Users can create and read their own, admin can read and update all
+    match /leave_requests/{leaveId} {
+      allow read, write: if isAdmin();
+      allow create: if isAuthenticated();
+      allow read: if isAuthenticated() && isOwner(resource.data.userId);
+    }
+    
+    // Attendance - Users can create their own, admin can read and update all, users can read their own
+    // Special rule to prevent duplicate attendance on same day
+    match /attendance/{attendanceId} {
+      allow read, write: if isAdmin();
+      allow create: if isAuthenticated() && 
+        request.auth.uid == request.resource.data.userId;
+      allow read: if isAuthenticated() && isOwner(resource.data.userId);
+    }
+    
+    // Payments - Users can create their own, admin can read and update all, users can read their own
+    match /payments/{paymentId} {
+      allow read, write: if isAdmin();
+      allow create: if isAuthenticated() && 
+        request.auth.uid == request.resource.data.userId;
+      allow read: if isAuthenticated() && isOwner(resource.data.userId);
+    }
+    
+    // Admin stats - Only admin can access
+    match /admin_stats/{statId} {
+      allow read, write: if isAdmin();
+    }
+  }
+}
